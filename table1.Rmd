@@ -1,0 +1,102 @@
+---
+title: "table1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("RODBC")
+library(RODBC)
+#install.packages("tableone")
+library(tableone)
+library(dplyr)
+```
+
+```{r}
+dataset <- read.csv("dat_aftermatching.csv")[,-1]
+dataset <- dataset[,-c(41:43,45:49)]
+# Donor Ethnicity
+dataset <- dataset %>%
+  mutate(DonorEthnicity = case_when(
+    RecipEthnicity == "Y" ~ "N",
+    RecipEthnicity == "N" ~ "Y",
+    RecipEthnicity == "-8" ~ "Unknown",
+    TRUE ~ RecipEthnicity
+  ))
+dataset$DonorEthnicity[which(dataset$DonorRecipEthnicity=="Same")] <- dataset$RecipEthnicity[which(dataset$DonorRecipEthnicity=="Same")]
+dataset$DonorEthnicity[which(dataset$DonorRecipEthnicity=="Unknown")] <- "Unknown"
+
+# Recip Ethnicity
+dataset$RecipEthnicity[which(dataset$RecipEthnicity=="-8")] <- "Unknown"
+
+# Recip Race
+dataset$RecipRace[which(dataset$RecipRace=="-6")] <- "Unknown"
+dataset$RecipRace[which(dataset$RecipRace=="-8")] <- "Unknown"
+
+dataset[dataset == "NULL"] <- NA
+dataset[dataset == "Unknown"] <- NA
+
+dataset$DonorRecipGender[dataset$DonorRecipGender == "Unknown"] <- NA
+dataset$DonorRecipEthnicity[dataset$DonorRecipEthnicity == "Unknown"] <- NA
+dataset$DonorRecipRace[dataset$DonorRecipRace == "Unknown"] <- NA
+dataset$DonorRecipABO[dataset$DonorRecipABO == "Unknown"] <- NA
+dataset$DonorRecipRh[dataset$DonorRecipRh == "Unknown"] <- NA
+dataset$DonorEthnicity[dataset$DonorEthnicity == "Unknown"] <- NA
+
+dataset_main = dataset[,-15]
+
+cal_col <- c(1,6:9,13:16,19,21:40)
+num_col <- c(2:5,10:12,17:18,20)
+for(i in cal_col){
+  dataset_main[,i] <- as.factor(dataset_main[,i])
+}
+for(i in num_col){
+  dataset_main[,i] <- as.numeric(dataset_main[,i])
+}
+
+```
+
+
+# table 1 main
+
+```{r}
+#Analysis
+datasetTableOne = CreateTableOne(data = dataset_main[,-40])
+summary(datasetTableOne) #For information on missingness
+print(datasetTableOne, showAllLevels = TRUE, formatOptions = list(big.mark = ","))
+
+datasetTableOne2 <- CreateTableOne(strata = "CaseControl" , data = dataset_main[,-40])
+datasettable_main <- print(datasetTableOne2, formatOptions = list(big.mark = ","))
+
+#write.csv(datasettable_main, file = "tableone_result.csv")
+```
+
+# table 1 subset
+```{r}
+case_sub <- dataset_main %>% filter(SubjectTotal == 1) %>% select(cluster_case) %>% unique() 
+dat_sub <- dataset_main[which(dataset_main$cluster_case %in% c(case_sub[,1])),]
+```
+
+
+```{r}
+#Analysis
+datasetTableOne = CreateTableOne(data = dat_sub[,-40])
+summary(datasetTableOne) #For information on missingness
+print(datasetTableOne, showAllLevels = TRUE, formatOptions = list(big.mark = ","))
+
+datasetTableOne2 <- CreateTableOne(strata = "CaseControl" , data = dat_sub[,-40])
+datasettable_subset <- print(datasetTableOne2, formatOptions = list(big.mark = ","))
+
+#write.csv(datasettable_subset, file = "tableone_subset.csv")
+```
+
+
+
+
+
+
+
+
